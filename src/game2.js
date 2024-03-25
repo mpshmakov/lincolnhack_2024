@@ -28,7 +28,7 @@ let max_ray_delay = 0.15;
 
 let ray_time_alive = 0.1;
 
-let spec_speed = 2.5;
+let spec_speed = 3.5;
 let player_speed = 1.45;
 let enemy_speed = 0.8;
 let bullet_speed = 4.5;
@@ -112,6 +112,11 @@ function get_distance(x1, y1, x2, y2){
     return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 }
 
+function check_if_outside_map (x, y){
+    //console.log(x< 0 || y < 0 || x > mapWidth || y > mapHeight)
+    return (x < 0 || y < 0 || x > mapWidth || y > mapHeight)
+}
+
 
 load(
     'assets/images/player.png',
@@ -152,6 +157,8 @@ load(
     // 32 x 32 pixels // this 
     //let coords = [ [100, 100], [132, 100], [200, 200], [300, 300], [400, 400], [500, 500], [600, 600], [700, 700], [800, 800], [900, 900], [1000, 1000], [1100, 1100], [1200, 1200], [1300, 1300], [1400, 1400], [1500, 1500]]
     let walls = [];
+    let customWalls = [];
+
     if (!customMap){
         walls = generate_walls_from_coords( coords)
     } else {
@@ -344,6 +351,8 @@ load(
         }
     })
 
+
+
     let background = Sprite({
         x: 0,
         y:0,
@@ -387,6 +396,35 @@ load(
         }
     }
 
+    function updatesprites(){
+        for (let i = 0; i < sprites.length; i++){
+            if (sprites[i].toggle == 'wc'){
+                        
+                finish_tilecustom = Sprite({
+                    x: sprites[i].x,
+                    y: sprites[i].y,
+                    width: 32,
+                    height: 32,
+                    color: 'yellow'
+                })
+                sprites[i].color = 'yellow'
+                console.log('executed 1')
+
+            } else if (sprites[i].toggle == 's'){
+                console.log('; in')
+                start_tile = {x: sprites[i].x, y: sprites[i].y}
+                sprites[i].color = 'blue'
+            }
+
+            else if (sprites[i].toggle == true){
+                console.log('executed 2')
+                sprites[i].color = 'white'
+            }else if (sprites[i].toggle == false){
+                sprites[i].color = null
+            }
+        }
+    }
+
 
     let spectator = Sprite({
         x: 0,
@@ -405,7 +443,689 @@ load(
     mapScene.hide();
 
     let btnpressed = false;
+
+    //scene 3
+
+    let player1custom = Sprite ({
+        lives: 4,
+        x: 52,
+        y: 52,  
+        image: assets[0],
+        attack_delay: max_attack_delay_player1,  //BUG THAT BULLET STILL COLLIDES WITH A PLAYER THAT HAS BEEN
+        anchor: {x: 0.5, y: 0.5},
+        time_alive: 0,
+
+        alive: function(){
+            return this.lives > 0;
+        },
+        
+        shoot: function(pointer_x, pointer_y){
+            if (this.attack_delay <= 0){
+                let angle = angleToTarget(this, {x: pointer_x, y: pointer_y});
+
+                //console.log('relative pointer x', pointer_x);
+                //console.log('relative pointer y', pointer_y);
+
+                //console.log('x from player', pointer_x - this.x);
+                //console.log('y from player', pointer_y - this.y);
+
+                //console.log('angle', angle);
+
+                let x_speed = bullet_speed * Math.cos(angle);
+                let y_speed = bullet_speed * Math.sin(angle);
+
+                let x_offset = 15 * Math.cos(angle);
+                let y_offset = 15 * Math.sin(angle);
+                //console.log('x_speed', x_speed);
+                //console.log('y_speed', y_speed);
+
+                bullet1 = Sprite({
+                    x: this.x + x_offset,
+                    y: this.y + y_offset,
+                    dx: x_speed,
+                    dy: y_speed,
+                    
+                    width: 5,
+                    height: 10,
+                    anchor: {x: 0.5, y: 0.5},
+                    rotation: angle + Math.PI / 2,
+                    color: 'red',
+
+                    // update: function(){
+                    //     this.advance();
+                    //     if (this.y < 0){
+                    //         //console.log(this.y);
+                    //         this.ttl = 0;
+                    //     }
+                    // }
+                })
+                scene_3.add(bullet1);
+                this.attack_delay = max_attack_delay_player1;
+            }
+        }
+
+    })
+
+    console.log('canvas center x', canvasCenter_x)
+    console.log('canvas center y', canvasCenter_y)
+
+    let player2custom = Sprite ({
+        
+        lives: 4,
+        direction: 2, // in 90 * direction. 1 - up, 2 - right, 3 - down, 4 left
+        dx: 1,
+        dy: 0,
+        x: canvasCenter_x,
+        y: canvasCenter_y,  
+        image: assets[3],
+        attack_delay: max_attack_delay_player2,
+        ray_delay: max_ray_delay,
+        anchor: {x: 0.5, y: 0.5},
+        time_alive: 0,
+
+        alive: function(){
+            return this.lives > 0;
+        },
+
+        shoot_rays: function(){
+
+            //console.log('shooted ray')
+            //console.log('direction', this.direction)
+            
+            let angle = this.direction * Math.PI / 2; // convert direction to radians
+            let angle_left = angle - Math.PI / 2.5; // 45 degrees to the left
+            let angle_right = angle + Math.PI / 2.5; // 45 degrees to the right
+
+            ray_left = Sprite({
+                x: this.x,
+                y: this.y,
+                dx: -ray_speed * Math.cos(angle_left) * 0.9,
+                dy: -ray_speed * Math.sin(angle_left) * 0.9,
+                color: 'red',
+                width: 5,
+                height: 5,
+                time_alive: 0,  
+                collided: false,
+                changed: false,
+            })
+
+            ray_straight = Sprite({
+                x: this.x,
+                y: this.y,
+                dx: -ray_speed * Math.cos(angle)*1,
+                dy: -ray_speed * Math.sin(angle)*1,
+                color: 'blue',
+                width: 5,
+                height: 5,
+                time_alive: 0,
+                collided: false,
+                changed: false,
+            })
+
+            ray_right = Sprite({
+                x: this.x,
+                y: this.y,
+                dx: -ray_speed * Math.cos(angle_right) * 0.9,
+                dy: -ray_speed * Math.sin(angle_right) * 0.9,
+                color: 'yellow',
+                width: 5,
+                height: 5,
+                time_alive: 0,
+                collided: false,
+                changed: false,
+            })
+            scene_3.add(ray_left);
+            scene_3.add(ray_straight);
+            scene_3.add(ray_right);
+
+        },
+
+        shoot: function(){
+            if (this.attack_delay <= 0){
+                let angle = angleToTarget(this, {x: player1custom.x, y: player1custom.y});
+
+                //console.log('enemy angle', angle);
+
+                let x_speed = bullet_speed * Math.cos(angle);
+                let y_speed = bullet_speed * Math.sin(angle);
+
+                let x_offset = 15 * Math.cos(angle);
+                let y_offset = 15 * Math.sin(angle);
+                //console.log('x_speed', x_speed);
+                //console.log('y_speed', y_speed);
+
+                bullet2 = Sprite({
+                    x: this.x + x_offset,
+                    y: this.y + y_offset,
+                    dx: x_speed,
+                    dy: y_speed,
+                    
+                    width: 5,
+                    height: 10,
+                    anchor: {x: 0.5, y: 0.5},
+                    rotation: angle + Math.PI / 2,
+                    color: 'blue',
+
+                    // update: function(){
+                    //     this.advance();
+                    //     if (this.y < 0){
+                    //         //console.log(this.y);
+                    //         this.ttl = 0;
+                    //     }
+                    // }
+                })
+                scene_3.add(bullet2);
+                this.attack_delay = max_attack_delay_player2;
+            }
+        }
+    })
+
+
+
+    let scene_3;
+    let finish_tilecustom = null;
+    let start_tile = null;
+
+    function init_scene_3(){
+        
+        player1custom.x = start_tile.x + 16
+        player1custom.y = start_tile.y + 16
+
+        let coll = true
+        console.log('walls', customWalls)
+
+        
+
+            for (let i = 0; i < customWalls.length; i++){
+                
+                
+                if (collides(player2custom, customWalls[i]) || get_distance(player2custom.x, player2custom.y, start_tile.x, start_tile.y) < 100){
+                    console.log('player2 collided')
+                    player2custom.x = Math.floor(Math.random() * (mapWidth-32)) + 16
+                    player2custom.y = Math.floor(Math.random() * (mapHeight-32)) + 16
+                    coll = true;
+                } else {
+                    console.log('player2 not collided')
+                    coll = false;
+                    break;
+                }
+            }
+        
+        
+        console.log("collided = ", coll)
+        console.log('player 2 position x y', player2custom.x, player2custom.y)
+        
+        scene_3 = Scene({
+            id: 'scene 3',
+            objects: [background, finish_tilecustom, player1custom, player2custom, ...customWalls],
+        })
+        loop2.stop()
+    }
+
+
+    //menu scene
+    
+    let playbtn = Button({
+        x: canvasCenter_x,
+        y: canvasCenter_y - 30,
+        width: 120,
+        height: 40,
+        color: 'green',
+        anchor : {x: 0.5, y: 0.5},
+
+        text: {
+            text: 'Play',
+            color: 'white',
+            font: '20px Arial, sans-serif',
+            anchor: {x: 0.5, y: 0.5}
+        },
+    })
+
+    let createmapbtn = Button({
+        x: canvasCenter_x,
+        y: canvasCenter_y + 30,
+        width: 120,
+        height: 40,
+        color: 'green',
+        anchor : {x: 0.5, y: 0.5},
+
+        text: {
+            text: 'Create Map',
+            color: 'white',
+            font: '20px Arial, sans-serif',
+            anchor: {x: 0.5, y: 0.5}
+        },
+    })
+
+    let menuscene = Scene({
+        id: 'menu',
+        objects: [playbtn, createmapbtn]
+    })
+
+
     //GAMELOOPs
+    const menuloop = GameLoop({
+        update: function(dt){
+            if (playbtn.hovered){
+                playbtn.color = 'darkgreen';
+            } else if (!playbtn.hovered){
+                playbtn.color = 'green'
+            }
+
+            if (createmapbtn.hovered){
+                createmapbtn.color = 'darkgreen';
+            } else if (!createmapbtn.hovered){
+                createmapbtn.color = 'green'
+            }
+
+            if (playbtn.pressed){
+                menuloop.stop();
+                menuscene.hide();
+                scene.show();
+                loop1.start();
+            }
+
+            if (createmapbtn.pressed){
+                menuloop.stop();
+                menuscene.hide();
+                mapScene.show();
+                loop2.start();
+            }
+
+            menuscene.update();
+        },
+        render: function(){
+            menuscene.render();
+        }
+    })
+
+    const loop3 = GameLoop({
+        update: function(dt){
+            console.log("update 1")
+
+            //console.log('player2custom x y', player2custom.x, player2custom.y);
+            player1custom.attack_delay -= dt;
+            player2custom.attack_delay -= dt;
+            player2custom.ray_delay -= dt;
+
+            player1custom.time_alive += dt;
+            player2custom.time_alive += dt;
+
+            if (ray_left){
+                ray_left.time_alive += dt;
+            }
+            if (ray_straight){
+                ray_straight.time_alive += dt;
+            }   
+            if(ray_right){      
+                ray_right.time_alive += dt;
+            }
+
+            scene_3.lookAt(player1custom);
+
+            ////console.log('player.x', player1custom.x);
+
+            if (keyPressed('w')){
+                player1custom.y -= player_speed;
+            }
+            if (keyPressed('s')){
+                player1custom.y +=  player_speed;
+            }
+            if (keyPressed('a')){
+                player1custom.x -=  player_speed;
+            }
+            if (keyPressed('d')){
+                player1custom.x +=  player_speed;
+            }
+
+
+            if (player1custom.x > background.width - player1custom.width){
+                player1custom.x = background.width - player1custom.width;
+            }
+
+            if (player1custom.x < 0){
+                player1custom.x = 0;
+            }
+
+            if (player1custom.y > background.height - player1custom.height){
+                player1custom.y = background.height - player1custom.height;
+            }
+
+            if (player1custom.y < 0){
+                player1custom.y = 0;
+            }
+
+            if (player2custom.x > background.width - player2custom.width){
+                console.log('player2 x > background.width')
+                player2custom.x = background.width - player2custom.width;
+            }
+
+            if (player2custom.x <= 0){
+                console.log('player2 x <= 0')
+                player2custom.x = 1;
+            }
+
+            if (player2custom.y > background.height - player2custom.height){
+                console.log('player2 y > background.height')
+                player2custom.y = background.height - player2custom.height;
+            }
+
+            if (player2custom.y <= 0){
+                console.log('player2 y <= 0')
+                player2custom.y = 1;
+            }
+
+
+            if (!player1custom.alive()){
+                loop3.stop();
+                alert('You lost');
+                window.location.reload();   
+            }
+
+            if (collides(player1custom, finish_tilecustom) || keyPressed('u')){
+                loop3.stop();
+                player1custom.x = 0;
+                player1custom.y = 0;
+                alert('You won');
+                
+                window.location.reload(); 
+            }
+            
+            //  //console.log('tmpx', tmpx);
+            //     //console.log('tmpy', tmpy);
+            
+            customWalls.forEach(function(wall) {
+                if (collides(player1custom, wall)){
+                    
+
+                    // player1custom.x = tmpx1; 
+                    // player1custom.y = tmpy1;
+                }
+
+                if (collides(player2custom, wall) ){
+                    
+                    console.log('player 2 collided with wall', player2custom.x, player2custom.y)
+                    if (player2custom.time_alive < 1){
+                        player2custom.x = Math.floor(Math.random() * (mapWidth-32)) + 16
+                        player2custom.y = Math.floor(Math.random() * (mapHeight-32)) + 16
+                    } else {
+                        player2custom.x = tmpx2;
+                        player2custom.y = tmpy2;
+                    }
+                    
+                    
+                    
+                }
+
+                if (bullet1 && collides(bullet1, wall)){
+                    //console.log('collided 1');
+                    let index = scene_3.objects.indexOf(bullet1);
+                    if (index > -1) {
+                        scene_3.objects.splice(index, 1);
+                    }
+                    bullet1 = null;
+                }
+
+                if (bullet2 && collides(bullet2, wall)){
+                    //console.log('collided 2');
+                    let index = scene_3.objects.indexOf(bullet2);
+                    if (index > -1) {
+                        scene_3.objects.splice(index, 1);
+                    }
+                    bullet2 = null;
+                }
+
+                if (ray_left && (collides(ray_left, wall) || check_if_outside_map(ray_left.x, ray_left.y))){
+                    ray_left.collided = true;
+                }
+
+                if (ray_straight && (collides(ray_straight, wall)|| check_if_outside_map(ray_straight.x, ray_straight.y))){
+                    ray_straight.collided = true;
+                }
+
+                if (ray_right && (collides(ray_right, wall)|| check_if_outside_map(ray_right.x, ray_right.y))){
+                    ray_right.collided = true;
+                }
+
+                
+            })
+
+            tmpx1 = player1custom.x;
+            tmpy1 = player1custom.y;
+            tmpx2 = player2custom.x;
+            tmpy2 = player2custom.y;
+            ////console.log(getPointer());
+
+            //rays and player2custom movement
+
+            if (player2custom.ray_delay <= 0 && player2custom.alive()){
+                //console.log('shoot')
+                player2custom.shoot_rays();
+                player2custom.ray_delay = max_ray_delay;
+            }
+
+            if ( ray_left && ray_left.time_alive >= ray_time_alive){
+                let index = scene_3.objects.indexOf(ray_left);
+                if (index > -1) {
+                    scene_3.objects.splice(index, 1);
+                }
+            }
+
+            if ( ray_straight && ray_straight.time_alive >= ray_time_alive){
+                let index = scene_3.objects.indexOf(ray_straight);
+                if (index > -1) {
+                    scene_3.objects.splice(index, 1);
+                }
+            }
+
+            if ( ray_right && ray_right.time_alive >= ray_time_alive){
+                let index = scene_3.objects.indexOf(ray_right);
+                if (index > -1) {
+                    scene_3.objects.splice(index, 1);
+                }
+            }
+
+            if (player2custom.alive()){
+
+                if (ray_left){
+                    //console.log('ray_left collided = ', ray_left.collided);
+                    //console.log('ray_left changed = ', ray_left.changed);
+                }
+                if (ray_straight){
+                    //console.log('ray_straight collided = ', ray_straight.collided);
+                    //console.log('ray_straight changed = ', ray_straight.changed);
+                }
+                if (ray_right){
+                    //console.log('ray_right collided = ', ray_right.collided);
+                    //console.log('ray_right changed = ', ray_right.changed);
+                }
+
+
+                console.log('direction WAS', player2custom.direction)
+
+                //console.log('dx WAS', player2custom.dx)
+                //console.log('dy WAS', player2custom.dy)
+                
+                if (ray_left && ray_left.collided && !ray_left.changed){
+                    ray_left.changed = true;
+                    if (ray_straight.collided && !ray_straight.changed){
+                        ray_straight.changed = true;
+                        if (ray_right.collided){
+                            
+                                player2custom.direction += 1; // turn right
+                                ray_left.changed = false;
+                                ray_straight.changed = false;
+                            
+                        } else if (!ray_right.collided){
+                            player2custom.direction += 1; // turn right
+                            ray_left.changed = false;
+                            ray_straight.changed = false;
+                        }
+                        
+                    } // else if !ray_straight.collided -> do nothing
+
+                } else if (ray_left && !ray_left.collided && !ray_left.changed){
+                    if (ray_straight.collided && !ray_straight.changed){
+                        ray_straight.changed = true;
+
+                        if (ray_right.collided && !ray_right.changed){
+
+                            ray_right.changed = true;
+                            player2custom.direction -= 1; //turn left
+                            ray_left.changed = false;
+                            ray_straight.changed = false;
+
+                        } else if (!ray_right.collided){
+
+                            let dir = Math.floor(Math.random()*1)
+
+                            if (dir == 1){
+                                player2custom.direction += 1
+                            } else {
+                                player2custom.direction -= 1
+                            } 
+
+                            ray_left.changed = false;
+                            ray_straight.changed = false;
+                        }
+                    } // else do nothing
+                }
+
+                // console.log('direction NEW', player2custom.direction)
+                // console.log('dx NEW', player2custom.dx)
+                // console.log('dy NEW', player2custom.dy)
+
+                console.log ('directoin new', player2custom.direction)
+
+                if (player2custom.direction > 4){
+                    player2custom.direction = 1;
+                }
+
+                if (player2custom.direction < 1){
+                    player2custom.direction = 4;
+                }
+
+                switch(player2custom.direction) {
+                    case 1: // up
+                        player2custom.dx = 0;
+                        player2custom.dy = -enemy_speed;
+                        break;
+                    case 2: // right
+                        player2custom.dx = enemy_speed;
+                        player2custom.dy = 0;
+                        break;
+                    case 3: // down
+                        player2custom.dx = 0;
+                        player2custom.dy = enemy_speed;
+                        break;
+                    case 4: // left
+                        player2custom.dx = -enemy_speed;
+                        player2custom.dy = 0;
+                        break;
+                }
+
+                if (player2custom.attack_delay <= 0 && get_distance(player1custom.x, player1custom.y, player2custom.x, player2custom.y) < 90){
+
+                    player2custom.shoot();
+                }
+            }
+
+            // shooting
+
+            if (pointerPressed('left') && player1custom.attack_delay <= 0){
+                
+                //console.log('\n\n\nnew click \n');
+                //console.log()
+                const {x, y} = getPointer();
+                
+                const {relative_x, relative_y} = get_pointer_pos_relative_to_map(player1custom.x, player1custom.y, x, y);
+                //console.log('player x', player1custom.x);
+                //console.log('player y', player1custom.y);
+                
+                //console.log('pointer x', x);
+                //console.log('pointer y', y);
+                player1custom.shoot(relative_x, relative_y);
+            }
+
+            if (bullet1){
+                if (collides(bullet1, player2custom)){
+                    if (!player2custom.alive()){
+                        let index = scene_3.objects.indexOf(player2custom);
+                        if (index > -1) {
+                            scene_3.objects.splice(index, 1);
+                        }
+                    } else {
+                        player2custom.lives -= 1;
+                        //console.log('hit 2');
+                        let index = scene_3.objects.indexOf(bullet1);
+                        if (index > -1) {
+                            scene_3.objects.splice(index, 1);
+                        }
+                        bullet1 = null;
+
+                        if (!player2custom.alive()){
+                            let index = scene_3.objects.indexOf(player2custom);
+                            if (index > -1) {
+                                scene_3.objects.splice(index, 1);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (bullet2){
+                if (collides(bullet2, player1custom)){
+                    player1custom.lives -= 1;
+                    //console.log('hit 1');
+                    let index = scene_3.objects.indexOf(bullet2);
+                    if (index > -1) {
+                        scene_3.objects.splice(index, 1);
+                    }
+                    bullet2 = null;
+                    if (!player1custom.alive()){
+                        let index = scene_3.objects.indexOf(player1custom);
+                        if (index > -1) {
+                            scene_3.objects.splice(index, 1);
+                        }
+                    }
+                }
+            }
+
+            if (bullet1){
+                if (bullet1.y < 0 || bullet1.y > mapHeight || bullet1.x < 0 || bullet1.x > mapWidth){
+                    
+                    let index = scene_3.objects.indexOf(bullet1);
+                    if (index > -1) {
+                        scene_3.objects.splice(index, 1);
+                    }
+                    bullet1 = null;
+                }
+            }
+            
+            if (bullet2){
+                if (bullet2.y < 0 || bullet2.y > mapHeight || bullet2.x < 0 || bullet2.x > mapWidth){
+                    
+                    let index = scene_3.objects.indexOf(bullet2);
+                    if (index > -1) {
+                        scene_3.objects.splice(index, 1);
+                    }
+                    bullet2 = null;
+                }
+            }
+
+            //console.log("mapscene hideen", mapscene_3.hidden);
+            //console.log("scene hidden", scene_3.hidden);
+
+                        scene_3.update();
+            
+
+        },
+        render: function(){
+            scene_3.render();
+
+        }
+    });
+
 
 
     const loop2 = GameLoop({
@@ -452,25 +1172,32 @@ load(
 
             if (keyPressed('space')){
                 loop2.stop();
+                spectator.x = -20;
+                spectator.y = -20;
                 sprites.forEach(function(sprite){
-                    if (sprite.toggle){
+                    if (sprite.toggle == true){
                         new_map_coords.push([sprite.x, sprite.y])
                         console.log('sprite x', sprite.x);
                         console.log('sprite y', sprite.y);
-                    } else if (sprite.toggle == 'w'){
-                        new_map_coords.push(['w', [sprite.x, sprite.y]])
                     }
+                    //  else if (sprite.toggle == 'w'){
+                    //     new_map_coords.push(['w', [sprite.x, sprite.y]])
+                    // }
                 });
 
-                alert('Level created!');
+                
                 mapScene.hide();
-                scene.show();
-                //customMap = true;
-                walls = null;
                 console.log('new map coords', new_map_coords)
-                walls = generate_walls_from_coords(new_map_coords)
+                customWalls = generate_walls_from_coords(new_map_coords)
 
-                loop1.start();
+
+                init_scene_3();
+                alert('Level created!');
+                scene_3.show();
+                //customMap = true;
+                
+                
+                loop3.start();
                 
             }
 
@@ -479,22 +1206,31 @@ load(
                 if (collides(spectator, sprites[i])){
                     if (keyPressed('j')){
                         sprites[i].toggle = true;
+                        updatesprites();
                     }
                     if (keyPressed('k')){
+                        if (sprites[i].toggle == 's'){
+                            start_tile = null
+                        }
                         sprites[i].toggle = false;
+                        updatesprites();
                     }
                     if (keyPressed('l')){
-                        sprites[i].toggle = 'w';
+                        if (sprites[i].toggle == 's'){
+                            start_tile = null
+                        }
+                        sprites[i].toggle = 'wc';
+                        console.log('\n\n',sprites[i].toggle, '\n\n')
+                        updatesprites();
+                    }
+                    if (keyPressed('h') && start_tile == null){
+                        sprites[i].toggle = 's'
+                        console.log('; toggle executed')
+                        updatesprites();
                     }
                 }
 
-                if (sprites[i].toggle){
-                    sprites[i].color = 'white'
-                } else if (sprites[i].toggle == 'w'){
-                    sprites[i].color = 'yellow'
-                }else {
-                    sprites[i].color = null
-                }
+                
             }
             mapScene.update();
 
@@ -572,25 +1308,10 @@ load(
                 player1.x = 0;
                 player1.y = 0;
                 alert('You won');
-                walls.forEach(function(wall){
-                    
-                        let index = scene.objects.indexOf(wall);
-                        if (index > -1){
-                            scene.objects.splice(index, 1);
-                        }
-                    
-                })
-                // scene.objects.forEach(function(obj){
-                //     if (obj.color == 'white'){
-                //         let index = scene.objects.indexOf(obj);
-                //         if (index > -1){
-                //             scene.objects.splice(index, 1);
-                //         }
-                //     }
-                // })
+
                 scene.hide()
-                mapScene.show()
-                loop2.start();
+                menuscene.show()
+                menuloop.start();
             }
             
             //  //console.log('tmpx', tmpx);
@@ -715,13 +1436,17 @@ load(
                     if (ray_straight.collided && !ray_straight.changed){
                         ray_straight.changed = true;
                         if (ray_right.collided){
-                            
+                                
+                                console.log('3 rays collided')
                                 player2.direction += 1; // turn right
+                                
+                                
                                 ray_left.changed = false;
                                 ray_straight.changed = false;
                             
                         } else if (!ray_right.collided){
-                            player2.direction -= 1; // turn left
+                            console.log('ray left straight collided, turning right')
+                            player2.direction += 1; // turn right
                             ray_left.changed = false;
                             ray_straight.changed = false;
                         }
@@ -732,15 +1457,26 @@ load(
                     if (ray_straight.collided && !ray_straight.changed){
                         ray_straight.changed = true;
                         if (ray_right.collided && !ray_right.changed){
+                            console.log('straight right rays collided, turning left')
+
                             ray_right.changed = true;
                             player2.direction -= 1; //turn left
                             ray_left.changed = false;
                                 ray_straight.changed = false;
 
                         } else if (!ray_right.collided){
-                            player2.direction += 1 //turn right for no reason
+
+                            console.log('ray straight collided')
+                            let dir = Math.floor(Math.random()*1)
+                            if (dir == 1){
+                                player2.direction += 1
+                                console.log('turning right')
+                            } else {
+                                player2.direction -= 1
+                                console.log('turning left')
+                            } 
                             ray_left.changed = false;
-                                ray_straight.changed = false;
+                            ray_straight.changed = false;
                         }
                     } // else do nothing
                 }
@@ -880,7 +1616,7 @@ load(
         }
     });
 
-    loop1.start();
+    menuloop.start();
         
   })
 
