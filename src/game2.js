@@ -121,9 +121,9 @@ function check_if_outside_map (x, y){
 load(
     'assets/images/player.png',
     
-    'assets/images/map1.png',
-    'assets/images/enemy.png',
-    'assets/images/player2.png',
+    
+    'assets/images/enemy1.png',
+
   ).then(function(assets) {
     //console.log("loaded")
     //console.log(assets)
@@ -243,12 +243,12 @@ load(
     let player2 = Sprite ({
         
         lives: 4,
-        direction: 2, // in 90 * direction. 1 - up, 2 - right, 3 - down, 4 left
+        direction: 4, // in 90 * direction. 1 - up, 2 - right, 3 - down, 4 left
         dx: 1,
         dy: 0,
-        x: 52,
-        y: 52,  
-        image: assets[3],
+        x: 322,
+        y: 50,  
+        image: assets[1],
         attack_delay: max_attack_delay_player2,
         ray_delay: max_ray_delay,
         anchor: {x: 0.5, y: 0.5},
@@ -356,7 +356,10 @@ load(
     let background = Sprite({
         x: 0,
         y:0,
-        image: assets[1]
+        width: 544,
+        height: 544,
+        color: 'green'
+        //image: assets[1]
         
         //image: dataAssets['images/player.png']
     })
@@ -517,7 +520,7 @@ load(
         dy: 0,
         x: canvasCenter_x,
         y: canvasCenter_y,  
-        image: assets[3],
+        image: assets[1],
         attack_delay: max_attack_delay_player2,
         ray_delay: max_ray_delay,
         anchor: {x: 0.5, y: 0.5},
@@ -838,8 +841,8 @@ load(
                 if (collides(player1custom, wall)){
                     
 
-                    // player1custom.x = tmpx1; 
-                    // player1custom.y = tmpy1;
+                    player1custom.x = tmpx1; 
+                    player1custom.y = tmpy1;
                 }
 
                 if (collides(player2custom, wall) ){
@@ -1309,9 +1312,7 @@ load(
                 player1.y = 0;
                 alert('You won');
 
-                scene.hide()
-                menuscene.show()
-                menuloop.start();
+                window.location.reload();
             }
             
             //  //console.log('tmpx', tmpx);

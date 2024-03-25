@@ -347,6 +347,72 @@
   function factory$8() {
     return new Sprite(...arguments);
   }
+  var fontSizeRegex = /(\d+)(\w+)/;
+  function parseFont(t) {
+    if (!t)
+      return { computed: 0 };
+    let e = t.match(fontSizeRegex), i = +e[1];
+    return { size: i, unit: e[2], computed: i };
+  }
+  var Text = class extends GameObject {
+    init({ text: t = "", textAlign: e = "", lineHeight: i = 1, font: s = getContext()?.font, ...a } = {}) {
+      t = "" + t, super.init({ text: t, textAlign: e, lineHeight: i, font: s, ...a }), this.context && this._p(), on("init", () => {
+        this.font ??= getContext().font, this._p();
+      });
+    }
+    get width() {
+      return this._w;
+    }
+    set width(t) {
+      this._d = true, this._w = t, this._fw = t;
+    }
+    get text() {
+      return this._t;
+    }
+    set text(t) {
+      this._d = true, this._t = "" + t;
+    }
+    get font() {
+      return this._f;
+    }
+    set font(t) {
+      this._d = true, this._f = t, this._fs = parseFont(t).computed;
+    }
+    get lineHeight() {
+      return this._lh;
+    }
+    set lineHeight(t) {
+      this._d = true, this._lh = t;
+    }
+    render() {
+      this._d && this._p(), super.render();
+    }
+    _p() {
+      this._s = [], this._d = false;
+      let t = this.context, e = [this.text];
+      if (t.font = this.font, e = this.text.split("\n"), this._fw && e.map((e2) => {
+        let i = e2.split(" "), s = i.shift(), a = s;
+        i.map((e3) => {
+          a += " " + e3, t.measureText(a).width > this._fw && (this._s.push(s), a = e3), s = a;
+        }), this._s.push(a);
+      }), !this._s.length && this.text.includes("\n")) {
+        let i = 0;
+        e.map((e2) => {
+          this._s.push(e2), i = Math.max(i, t.measureText(e2).width);
+        }), this._w = this._fw || i;
+      }
+      this._s.length || (this._s.push(this.text), this._w = this._fw || t.measureText(this.text).width), this.height = this._fs + (this._s.length - 1) * this._fs * this.lineHeight, this._uw();
+    }
+    draw() {
+      let t = 0, e = this.textAlign, i = this.context;
+      e = this.textAlign || (i.canvas.dir == "rtl" ? "right" : "left"), t = e == "right" ? this.width : e == "center" ? this.width / 2 | 0 : 0, this._s.map((s, a) => {
+        i.textBaseline = "top", i.textAlign = e, i.fillStyle = this.color, i.font = this.font, this.strokeColor && (i.strokeStyle = this.strokeColor, i.lineWidth = this.lineWidth ?? 1, i.strokeText(s, t, this._fs * this.lineHeight * a)), i.fillText(s, t, this._fs * this.lineHeight * a);
+      });
+    }
+  };
+  function factory$7() {
+    return new Text(...arguments);
+  }
   var pointers = /* @__PURE__ */ new WeakMap();
   var callbacks$1 = {};
   var pressedButtons = {};
@@ -418,8 +484,83 @@
       }), i._cf.length = 0;
     })), i;
   }
+  function track(...t) {
+    t.flat().map((t2) => {
+      let e = t2.context ? t2.context.canvas : getCanvas(), i = pointers.get(e);
+      if (!i)
+        throw new ReferenceError("Pointer events not initialized for the objects canvas");
+      t2._r || (t2._r = t2.render, t2.render = function() {
+        i._cf.push(this), this._r();
+      }, i._o.push(t2));
+    });
+  }
   function pointerPressed(t) {
     return !!pressedButtons[t];
+  }
+  var Button = class extends Sprite {
+    init({ padX: t = 0, padY: e = 0, text: i, disabled: s = false, onDown: a, onUp: n, ...o } = {}) {
+      super.init({ padX: t, padY: e, ...o }), this.textNode = factory$7({ ...i, context: this.context }), this.width || (this.width = this.textNode.width, this.height = this.textNode.height), track(this), this.addChild(this.textNode), this._od = a || noop, this._ou = n || noop;
+      let r = this._dn = document.createElement("button");
+      r.style = srOnlyStyle, r.textContent = this.text, s && this.disable(), r.addEventListener("focus", () => this.focus()), r.addEventListener("blur", () => this.blur()), r.addEventListener("keydown", (t2) => this._kd(t2)), r.addEventListener("keyup", (t2) => this._ku(t2)), addToDom(r, this.context.canvas), this._uw(), this._p();
+    }
+    get text() {
+      return this.textNode.text;
+    }
+    set text(t) {
+      this._d = true, this.textNode.text = t;
+    }
+    destroy() {
+      this._dn.remove();
+    }
+    _p() {
+      this.text != this._dn.textContent && (this._dn.textContent = this.text), this.textNode._p();
+      let t = this.textNode.width + 2 * this.padX, e = this.textNode.height + 2 * this.padY;
+      this.width = Math.max(t, this.width), this.height = Math.max(e, this.height), this._uw();
+    }
+    render() {
+      this._d && this._p(), super.render();
+    }
+    enable() {
+      this.disabled = this._dn.disabled = false, this.onEnable();
+    }
+    disable() {
+      this.disabled = this._dn.disabled = true, this.onDisable();
+    }
+    focus() {
+      this.disabled || (this.focused = true, document.activeElement != this._dn && this._dn.focus(), this.onFocus());
+    }
+    blur() {
+      this.focused = false, document.activeElement == this._dn && this._dn.blur(), this.onBlur();
+    }
+    onOver() {
+      this.disabled || (this.hovered = true);
+    }
+    onOut() {
+      this.hovered = false;
+    }
+    onEnable() {
+    }
+    onDisable() {
+    }
+    onFocus() {
+    }
+    onBlur() {
+    }
+    onDown() {
+      this.disabled || (this.pressed = true, this._od());
+    }
+    onUp() {
+      this.disabled || (this.pressed = false, this._ou());
+    }
+    _kd(t) {
+      t.code != "Enter" && t.code != "Space" || this.onDown();
+    }
+    _ku(t) {
+      t.code != "Enter" && t.code != "Space" || this.onUp();
+    }
+  };
+  function factory$6() {
+    return new Button(...arguments);
   }
   function clear(t) {
     let e = t.canvas;
@@ -582,7 +723,7 @@
   var max_attack_delay_player2 = 0.7;
   var max_ray_delay = 0.15;
   var ray_time_alive = 0.1;
-  var spec_speed = 2.5;
+  var spec_speed = 3.5;
   var player_speed = 1.45;
   var enemy_speed = 0.8;
   var bullet_speed = 4.5;
@@ -642,7 +783,10 @@
   function get_distance(x1, y1, x2, y2) {
     return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
   }
-  load("assets/images/player.png", "assets/images/map1.png", "assets/images/enemy.png", "assets/images/player2.png").then(function(assets) {
+  function check_if_outside_map(x, y) {
+    return x < 0 || y < 0 || x > mapWidth || y > mapHeight;
+  }
+  load("assets/images/player.png", "assets/images/enemy1.png").then(function(assets) {
     let map = [
       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
       [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1],
@@ -665,6 +809,7 @@
     let coords = generate_coords_from_map(map);
     console.log("coords ", coords);
     let walls = [];
+    let customWalls = [];
     if (!customMap) {
       walls = generate_walls_from_coords(coords);
     } else {
@@ -706,12 +851,12 @@
     });
     let player2 = factory$8({
       lives: 4,
-      direction: 2,
+      direction: 4,
       dx: 1,
       dy: 0,
-      x: 52,
-      y: 52,
-      image: assets[3],
+      x: 322,
+      y: 50,
+      image: assets[1],
       attack_delay: max_attack_delay_player2,
       ray_delay: max_ray_delay,
       anchor: { x: 0.5, y: 0.5 },
@@ -789,7 +934,9 @@
     let background = factory$8({
       x: 0,
       y: 0,
-      image: assets[1]
+      width: 544,
+      height: 544,
+      color: "green"
     });
     let scene = factory$2({
       id: "game",
@@ -813,6 +960,30 @@
         sprites.push(sprite);
       }
     }
+    function updatesprites() {
+      for (let i = 0; i < sprites.length; i++) {
+        if (sprites[i].toggle == "wc") {
+          finish_tilecustom = factory$8({
+            x: sprites[i].x,
+            y: sprites[i].y,
+            width: 32,
+            height: 32,
+            color: "yellow"
+          });
+          sprites[i].color = "yellow";
+          console.log("executed 1");
+        } else if (sprites[i].toggle == "s") {
+          console.log("; in");
+          start_tile = { x: sprites[i].x, y: sprites[i].y };
+          sprites[i].color = "blue";
+        } else if (sprites[i].toggle == true) {
+          console.log("executed 2");
+          sprites[i].color = "white";
+        } else if (sprites[i].toggle == false) {
+          sprites[i].color = null;
+        }
+      }
+    }
     let spectator = factory$8({
       x: 0,
       y: 0,
@@ -827,6 +998,488 @@
     });
     mapScene.hide();
     let btnpressed = false;
+    let player1custom = factory$8({
+      lives: 4,
+      x: 52,
+      y: 52,
+      image: assets[0],
+      attack_delay: max_attack_delay_player1,
+      anchor: { x: 0.5, y: 0.5 },
+      time_alive: 0,
+      alive: function() {
+        return this.lives > 0;
+      },
+      shoot: function(pointer_x, pointer_y) {
+        if (this.attack_delay <= 0) {
+          let angle = angleToTarget(this, { x: pointer_x, y: pointer_y });
+          let x_speed = bullet_speed * Math.cos(angle);
+          let y_speed = bullet_speed * Math.sin(angle);
+          let x_offset = 15 * Math.cos(angle);
+          let y_offset = 15 * Math.sin(angle);
+          bullet1 = factory$8({
+            x: this.x + x_offset,
+            y: this.y + y_offset,
+            dx: x_speed,
+            dy: y_speed,
+            width: 5,
+            height: 10,
+            anchor: { x: 0.5, y: 0.5 },
+            rotation: angle + Math.PI / 2,
+            color: "red"
+          });
+          scene_3.add(bullet1);
+          this.attack_delay = max_attack_delay_player1;
+        }
+      }
+    });
+    console.log("canvas center x", canvasCenter_x);
+    console.log("canvas center y", canvasCenter_y);
+    let player2custom = factory$8({
+      lives: 4,
+      direction: 2,
+      dx: 1,
+      dy: 0,
+      x: canvasCenter_x,
+      y: canvasCenter_y,
+      image: assets[1],
+      attack_delay: max_attack_delay_player2,
+      ray_delay: max_ray_delay,
+      anchor: { x: 0.5, y: 0.5 },
+      time_alive: 0,
+      alive: function() {
+        return this.lives > 0;
+      },
+      shoot_rays: function() {
+        let angle = this.direction * Math.PI / 2;
+        let angle_left = angle - Math.PI / 2.5;
+        let angle_right = angle + Math.PI / 2.5;
+        ray_left = factory$8({
+          x: this.x,
+          y: this.y,
+          dx: -ray_speed * Math.cos(angle_left) * 0.9,
+          dy: -ray_speed * Math.sin(angle_left) * 0.9,
+          color: "red",
+          width: 5,
+          height: 5,
+          time_alive: 0,
+          collided: false,
+          changed: false
+        });
+        ray_straight = factory$8({
+          x: this.x,
+          y: this.y,
+          dx: -ray_speed * Math.cos(angle) * 1,
+          dy: -ray_speed * Math.sin(angle) * 1,
+          color: "blue",
+          width: 5,
+          height: 5,
+          time_alive: 0,
+          collided: false,
+          changed: false
+        });
+        ray_right = factory$8({
+          x: this.x,
+          y: this.y,
+          dx: -ray_speed * Math.cos(angle_right) * 0.9,
+          dy: -ray_speed * Math.sin(angle_right) * 0.9,
+          color: "yellow",
+          width: 5,
+          height: 5,
+          time_alive: 0,
+          collided: false,
+          changed: false
+        });
+        scene_3.add(ray_left);
+        scene_3.add(ray_straight);
+        scene_3.add(ray_right);
+      },
+      shoot: function() {
+        if (this.attack_delay <= 0) {
+          let angle = angleToTarget(this, { x: player1custom.x, y: player1custom.y });
+          let x_speed = bullet_speed * Math.cos(angle);
+          let y_speed = bullet_speed * Math.sin(angle);
+          let x_offset = 15 * Math.cos(angle);
+          let y_offset = 15 * Math.sin(angle);
+          bullet2 = factory$8({
+            x: this.x + x_offset,
+            y: this.y + y_offset,
+            dx: x_speed,
+            dy: y_speed,
+            width: 5,
+            height: 10,
+            anchor: { x: 0.5, y: 0.5 },
+            rotation: angle + Math.PI / 2,
+            color: "blue"
+          });
+          scene_3.add(bullet2);
+          this.attack_delay = max_attack_delay_player2;
+        }
+      }
+    });
+    let scene_3;
+    let finish_tilecustom = null;
+    let start_tile = null;
+    function init_scene_3() {
+      player1custom.x = start_tile.x + 16;
+      player1custom.y = start_tile.y + 16;
+      let coll = true;
+      console.log("walls", customWalls);
+      for (let i = 0; i < customWalls.length; i++) {
+        if (collides(player2custom, customWalls[i]) || get_distance(player2custom.x, player2custom.y, start_tile.x, start_tile.y) < 100) {
+          console.log("player2 collided");
+          player2custom.x = Math.floor(Math.random() * (mapWidth - 32)) + 16;
+          player2custom.y = Math.floor(Math.random() * (mapHeight - 32)) + 16;
+          coll = true;
+        } else {
+          console.log("player2 not collided");
+          coll = false;
+          break;
+        }
+      }
+      console.log("collided = ", coll);
+      console.log("player 2 position x y", player2custom.x, player2custom.y);
+      scene_3 = factory$2({
+        id: "scene 3",
+        objects: [background, finish_tilecustom, player1custom, player2custom, ...customWalls]
+      });
+      loop2.stop();
+    }
+    let playbtn = factory$6({
+      x: canvasCenter_x,
+      y: canvasCenter_y - 30,
+      width: 120,
+      height: 40,
+      color: "green",
+      anchor: { x: 0.5, y: 0.5 },
+      text: {
+        text: "Play",
+        color: "white",
+        font: "20px Arial, sans-serif",
+        anchor: { x: 0.5, y: 0.5 }
+      }
+    });
+    let createmapbtn = factory$6({
+      x: canvasCenter_x,
+      y: canvasCenter_y + 30,
+      width: 120,
+      height: 40,
+      color: "green",
+      anchor: { x: 0.5, y: 0.5 },
+      text: {
+        text: "Create Map",
+        color: "white",
+        font: "20px Arial, sans-serif",
+        anchor: { x: 0.5, y: 0.5 }
+      }
+    });
+    let menuscene = factory$2({
+      id: "menu",
+      objects: [playbtn, createmapbtn]
+    });
+    const menuloop = GameLoop({
+      update: function(dt) {
+        if (playbtn.hovered) {
+          playbtn.color = "darkgreen";
+        } else if (!playbtn.hovered) {
+          playbtn.color = "green";
+        }
+        if (createmapbtn.hovered) {
+          createmapbtn.color = "darkgreen";
+        } else if (!createmapbtn.hovered) {
+          createmapbtn.color = "green";
+        }
+        if (playbtn.pressed) {
+          menuloop.stop();
+          menuscene.hide();
+          scene.show();
+          loop1.start();
+        }
+        if (createmapbtn.pressed) {
+          menuloop.stop();
+          menuscene.hide();
+          mapScene.show();
+          loop2.start();
+        }
+        menuscene.update();
+      },
+      render: function() {
+        menuscene.render();
+      }
+    });
+    const loop3 = GameLoop({
+      update: function(dt) {
+        console.log("update 1");
+        player1custom.attack_delay -= dt;
+        player2custom.attack_delay -= dt;
+        player2custom.ray_delay -= dt;
+        player1custom.time_alive += dt;
+        player2custom.time_alive += dt;
+        if (ray_left) {
+          ray_left.time_alive += dt;
+        }
+        if (ray_straight) {
+          ray_straight.time_alive += dt;
+        }
+        if (ray_right) {
+          ray_right.time_alive += dt;
+        }
+        scene_3.lookAt(player1custom);
+        if (keyPressed("w")) {
+          player1custom.y -= player_speed;
+        }
+        if (keyPressed("s")) {
+          player1custom.y += player_speed;
+        }
+        if (keyPressed("a")) {
+          player1custom.x -= player_speed;
+        }
+        if (keyPressed("d")) {
+          player1custom.x += player_speed;
+        }
+        if (player1custom.x > background.width - player1custom.width) {
+          player1custom.x = background.width - player1custom.width;
+        }
+        if (player1custom.x < 0) {
+          player1custom.x = 0;
+        }
+        if (player1custom.y > background.height - player1custom.height) {
+          player1custom.y = background.height - player1custom.height;
+        }
+        if (player1custom.y < 0) {
+          player1custom.y = 0;
+        }
+        if (player2custom.x > background.width - player2custom.width) {
+          console.log("player2 x > background.width");
+          player2custom.x = background.width - player2custom.width;
+        }
+        if (player2custom.x <= 0) {
+          console.log("player2 x <= 0");
+          player2custom.x = 1;
+        }
+        if (player2custom.y > background.height - player2custom.height) {
+          console.log("player2 y > background.height");
+          player2custom.y = background.height - player2custom.height;
+        }
+        if (player2custom.y <= 0) {
+          console.log("player2 y <= 0");
+          player2custom.y = 1;
+        }
+        if (!player1custom.alive()) {
+          loop3.stop();
+          alert("You lost");
+          window.location.reload();
+        }
+        if (collides(player1custom, finish_tilecustom) || keyPressed("u")) {
+          loop3.stop();
+          player1custom.x = 0;
+          player1custom.y = 0;
+          alert("You won");
+          window.location.reload();
+        }
+        customWalls.forEach(function(wall) {
+          if (collides(player1custom, wall)) {
+            player1custom.x = tmpx1;
+            player1custom.y = tmpy1;
+          }
+          if (collides(player2custom, wall)) {
+            console.log("player 2 collided with wall", player2custom.x, player2custom.y);
+            if (player2custom.time_alive < 1) {
+              player2custom.x = Math.floor(Math.random() * (mapWidth - 32)) + 16;
+              player2custom.y = Math.floor(Math.random() * (mapHeight - 32)) + 16;
+            } else {
+              player2custom.x = tmpx2;
+              player2custom.y = tmpy2;
+            }
+          }
+          if (bullet1 && collides(bullet1, wall)) {
+            let index = scene_3.objects.indexOf(bullet1);
+            if (index > -1) {
+              scene_3.objects.splice(index, 1);
+            }
+            bullet1 = null;
+          }
+          if (bullet2 && collides(bullet2, wall)) {
+            let index = scene_3.objects.indexOf(bullet2);
+            if (index > -1) {
+              scene_3.objects.splice(index, 1);
+            }
+            bullet2 = null;
+          }
+          if (ray_left && (collides(ray_left, wall) || check_if_outside_map(ray_left.x, ray_left.y))) {
+            ray_left.collided = true;
+          }
+          if (ray_straight && (collides(ray_straight, wall) || check_if_outside_map(ray_straight.x, ray_straight.y))) {
+            ray_straight.collided = true;
+          }
+          if (ray_right && (collides(ray_right, wall) || check_if_outside_map(ray_right.x, ray_right.y))) {
+            ray_right.collided = true;
+          }
+        });
+        tmpx1 = player1custom.x;
+        tmpy1 = player1custom.y;
+        tmpx2 = player2custom.x;
+        tmpy2 = player2custom.y;
+        if (player2custom.ray_delay <= 0 && player2custom.alive()) {
+          player2custom.shoot_rays();
+          player2custom.ray_delay = max_ray_delay;
+        }
+        if (ray_left && ray_left.time_alive >= ray_time_alive) {
+          let index = scene_3.objects.indexOf(ray_left);
+          if (index > -1) {
+            scene_3.objects.splice(index, 1);
+          }
+        }
+        if (ray_straight && ray_straight.time_alive >= ray_time_alive) {
+          let index = scene_3.objects.indexOf(ray_straight);
+          if (index > -1) {
+            scene_3.objects.splice(index, 1);
+          }
+        }
+        if (ray_right && ray_right.time_alive >= ray_time_alive) {
+          let index = scene_3.objects.indexOf(ray_right);
+          if (index > -1) {
+            scene_3.objects.splice(index, 1);
+          }
+        }
+        if (player2custom.alive()) {
+          if (ray_left) {
+          }
+          if (ray_straight) {
+          }
+          if (ray_right) {
+          }
+          console.log("direction WAS", player2custom.direction);
+          if (ray_left && ray_left.collided && !ray_left.changed) {
+            ray_left.changed = true;
+            if (ray_straight.collided && !ray_straight.changed) {
+              ray_straight.changed = true;
+              if (ray_right.collided) {
+                player2custom.direction += 1;
+                ray_left.changed = false;
+                ray_straight.changed = false;
+              } else if (!ray_right.collided) {
+                player2custom.direction += 1;
+                ray_left.changed = false;
+                ray_straight.changed = false;
+              }
+            }
+          } else if (ray_left && !ray_left.collided && !ray_left.changed) {
+            if (ray_straight.collided && !ray_straight.changed) {
+              ray_straight.changed = true;
+              if (ray_right.collided && !ray_right.changed) {
+                ray_right.changed = true;
+                player2custom.direction -= 1;
+                ray_left.changed = false;
+                ray_straight.changed = false;
+              } else if (!ray_right.collided) {
+                let dir = Math.floor(Math.random() * 1);
+                if (dir == 1) {
+                  player2custom.direction += 1;
+                } else {
+                  player2custom.direction -= 1;
+                }
+                ray_left.changed = false;
+                ray_straight.changed = false;
+              }
+            }
+          }
+          console.log("directoin new", player2custom.direction);
+          if (player2custom.direction > 4) {
+            player2custom.direction = 1;
+          }
+          if (player2custom.direction < 1) {
+            player2custom.direction = 4;
+          }
+          switch (player2custom.direction) {
+            case 1:
+              player2custom.dx = 0;
+              player2custom.dy = -enemy_speed;
+              break;
+            case 2:
+              player2custom.dx = enemy_speed;
+              player2custom.dy = 0;
+              break;
+            case 3:
+              player2custom.dx = 0;
+              player2custom.dy = enemy_speed;
+              break;
+            case 4:
+              player2custom.dx = -enemy_speed;
+              player2custom.dy = 0;
+              break;
+          }
+          if (player2custom.attack_delay <= 0 && get_distance(player1custom.x, player1custom.y, player2custom.x, player2custom.y) < 90) {
+            player2custom.shoot();
+          }
+        }
+        if (pointerPressed("left") && player1custom.attack_delay <= 0) {
+          const { x, y } = getPointer();
+          const { relative_x, relative_y } = get_pointer_pos_relative_to_map(player1custom.x, player1custom.y, x, y);
+          player1custom.shoot(relative_x, relative_y);
+        }
+        if (bullet1) {
+          if (collides(bullet1, player2custom)) {
+            if (!player2custom.alive()) {
+              let index = scene_3.objects.indexOf(player2custom);
+              if (index > -1) {
+                scene_3.objects.splice(index, 1);
+              }
+            } else {
+              player2custom.lives -= 1;
+              let index = scene_3.objects.indexOf(bullet1);
+              if (index > -1) {
+                scene_3.objects.splice(index, 1);
+              }
+              bullet1 = null;
+              if (!player2custom.alive()) {
+                let index2 = scene_3.objects.indexOf(player2custom);
+                if (index2 > -1) {
+                  scene_3.objects.splice(index2, 1);
+                }
+              }
+            }
+          }
+        }
+        if (bullet2) {
+          if (collides(bullet2, player1custom)) {
+            player1custom.lives -= 1;
+            let index = scene_3.objects.indexOf(bullet2);
+            if (index > -1) {
+              scene_3.objects.splice(index, 1);
+            }
+            bullet2 = null;
+            if (!player1custom.alive()) {
+              let index2 = scene_3.objects.indexOf(player1custom);
+              if (index2 > -1) {
+                scene_3.objects.splice(index2, 1);
+              }
+            }
+          }
+        }
+        if (bullet1) {
+          if (bullet1.y < 0 || bullet1.y > mapHeight || bullet1.x < 0 || bullet1.x > mapWidth) {
+            let index = scene_3.objects.indexOf(bullet1);
+            if (index > -1) {
+              scene_3.objects.splice(index, 1);
+            }
+            bullet1 = null;
+          }
+        }
+        if (bullet2) {
+          if (bullet2.y < 0 || bullet2.y > mapHeight || bullet2.x < 0 || bullet2.x > mapWidth) {
+            let index = scene_3.objects.indexOf(bullet2);
+            if (index > -1) {
+              scene_3.objects.splice(index, 1);
+            }
+            bullet2 = null;
+          }
+        }
+        scene_3.update();
+      },
+      render: function() {
+        scene_3.render();
+      }
+    });
     const loop2 = GameLoop({
       update: function(dt) {
         console.log("update 2");
@@ -857,41 +1510,49 @@
         }
         if (keyPressed("space")) {
           loop2.stop();
+          spectator.x = -20;
+          spectator.y = -20;
           sprites.forEach(function(sprite) {
-            if (sprite.toggle) {
+            if (sprite.toggle == true) {
               new_map_coords.push([sprite.x, sprite.y]);
               console.log("sprite x", sprite.x);
               console.log("sprite y", sprite.y);
-            } else if (sprite.toggle == "w") {
-              new_map_coords.push(["w", [sprite.x, sprite.y]]);
             }
           });
-          alert("Level created!");
           mapScene.hide();
-          scene.show();
-          walls = null;
           console.log("new map coords", new_map_coords);
-          walls = generate_walls_from_coords(new_map_coords);
-          loop1.start();
+          customWalls = generate_walls_from_coords(new_map_coords);
+          init_scene_3();
+          alert("Level created!");
+          scene_3.show();
+          loop3.start();
         }
         for (let i = 0; i < sprites.length; i++) {
           if (collides(spectator, sprites[i])) {
             if (keyPressed("j")) {
               sprites[i].toggle = true;
+              updatesprites();
             }
             if (keyPressed("k")) {
+              if (sprites[i].toggle == "s") {
+                start_tile = null;
+              }
               sprites[i].toggle = false;
+              updatesprites();
             }
             if (keyPressed("l")) {
-              sprites[i].toggle = "w";
+              if (sprites[i].toggle == "s") {
+                start_tile = null;
+              }
+              sprites[i].toggle = "wc";
+              console.log("\n\n", sprites[i].toggle, "\n\n");
+              updatesprites();
             }
-          }
-          if (sprites[i].toggle) {
-            sprites[i].color = "white";
-          } else if (sprites[i].toggle == "w") {
-            sprites[i].color = "yellow";
-          } else {
-            sprites[i].color = null;
+            if (keyPressed("h") && start_tile == null) {
+              sprites[i].toggle = "s";
+              console.log("; toggle executed");
+              updatesprites();
+            }
           }
         }
         mapScene.update();
@@ -952,15 +1613,7 @@
           player1.x = 0;
           player1.y = 0;
           alert("You won");
-          walls.forEach(function(wall) {
-            let index = scene.objects.indexOf(wall);
-            if (index > -1) {
-              scene.objects.splice(index, 1);
-            }
-          });
-          scene.hide();
-          mapScene.show();
-          loop2.start();
+          window.location.reload();
         }
         walls.forEach(function(wall) {
           if (collides(player1, wall)) {
@@ -1045,11 +1698,13 @@
             if (ray_straight.collided && !ray_straight.changed) {
               ray_straight.changed = true;
               if (ray_right.collided) {
+                console.log("3 rays collided");
                 player2.direction += 1;
                 ray_left.changed = false;
                 ray_straight.changed = false;
               } else if (!ray_right.collided) {
-                player2.direction -= 1;
+                console.log("ray left straight collided, turning right");
+                player2.direction += 1;
                 ray_left.changed = false;
                 ray_straight.changed = false;
               }
@@ -1058,12 +1713,21 @@
             if (ray_straight.collided && !ray_straight.changed) {
               ray_straight.changed = true;
               if (ray_right.collided && !ray_right.changed) {
+                console.log("straight right rays collided, turning left");
                 ray_right.changed = true;
                 player2.direction -= 1;
                 ray_left.changed = false;
                 ray_straight.changed = false;
               } else if (!ray_right.collided) {
-                player2.direction += 1;
+                console.log("ray straight collided");
+                let dir = Math.floor(Math.random() * 1);
+                if (dir == 1) {
+                  player2.direction += 1;
+                  console.log("turning right");
+                } else {
+                  player2.direction -= 1;
+                  console.log("turning left");
+                }
                 ray_left.changed = false;
                 ray_straight.changed = false;
               }
@@ -1165,7 +1829,7 @@
         scene.render();
       }
     });
-    loop1.start();
+    menuloop.start();
   });
 })();
 /**
