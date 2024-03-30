@@ -80,7 +80,7 @@ function generate_walls_from_coords(coords){
                 y: coords[i][1],
                 width: 32,
                 height: 32,
-                color: 'white',
+                color: 'pink',
                 
                 
             })
@@ -221,7 +221,7 @@ load(
                     height: 10,
                     anchor: {x: 0.5, y: 0.5},
                     rotation: angle + Math.PI / 2,
-                    color: 'red',
+                    color: 'pink',
 
                     // update: function(){
                     //     this.advance();
@@ -358,7 +358,7 @@ load(
         y:0,
         width: 544,
         height: 544,
-        color: 'green'
+        color: 'black'
         //image: assets[1]
         
         //image: dataAssets['images/player.png']
@@ -492,7 +492,7 @@ load(
                     height: 10,
                     anchor: {x: 0.5, y: 0.5},
                     rotation: angle + Math.PI / 2,
-                    color: 'red',
+                    color: 'pink',
 
                     // update: function(){
                     //     this.advance();
@@ -1306,7 +1306,7 @@ load(
                 window.location.reload();   
             }
 
-            if (collides(player1, finish_tile) || keyPressed('u')){
+            if (collides(player1, finish_tile) || keyPressed('u') || !player2.alive()){
                 loop1.stop();
                 player1.x = 0;
                 player1.y = 0;
